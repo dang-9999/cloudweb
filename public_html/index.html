@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script type="text/javascript"
+        src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=3vzalur7cs&amp;submodules=geocoder"></script>
+    <script src="https://code.jquery.com/jquery-3.6.1.min.js"
+        integrity="sha256-o88AwQnZB+VDvE9tvIXrMQaPlFFSUTR+nldQm1LuPXQ=" crossorigin="anonymous"></script>
+    <meta charset="UTF-8">
+    <title>animal hospital</title>
+</head>
+
+<body>
+    <div style="margin-top:20px; margin-bottom:10px; font-weight: bold;">동물병원지도</div>
+    <div id="map" style="width:100ex; height:80ex"></div>
+</body>
+<script>
+    $(document).ready(async () => {
+        let XY = await getLocation();
+        await naver.maps.Service.reverseGeocode({
+            location: new naver.maps.LatLng(XY.lat, XY.lng)
+        }, (status, response) => {
+            let result = response.result;
+            let items = result.items;
+            //console.log(items[0].addrdetail.sido);   //시도
+            //console.log(items[0].addrdetail.sigugun);   //시구군
+            let sido_arr = items[0].addrdetail.sido.split("");
+            let gugun_arr = items[0].addrdetail.sigugun.split("");
+
+            let sido = "";
+            let gugun = "";
+            if (sido_arr.length == 1) {
+                sido = sido_arr[0];
+                gugun = gugun_arr[0];
+            }
+            else if (sido_arr.length > 1) {
+                sido = sido_arr[0];
+                gugun = sido_arr[1];
+            }
+
+
+        });
+        $.ajax({
+            url: "/Pharmach_list",
+            type: "GET",
+            cache: false,
+            dataType: "json",
+            data: { "pageNo": "1", "numOfRows": "", "type": "JSON" }
+            ,
+            success: (data) => {
+                console.log(data);
+                var mapDiv = document.getElementById('map'); // 'map'으로 선언해도 동일
+                var mapOptions = {
+                    center: new naver.maps.LatLng(37.456177414614, 126.644219932369),   //중심을 인천미추홀구로 설정
+                    zoom: 13
+                }
+                var map = new naver.maps.Map(mapDiv, mapOptions);
+
+                data.items.item.forEach((it, index) => {
+                    let hospitalName = it.bsn_nm;          //동물병원명
+                    let hospitalAddr = it.road_nm_addr;    //도로명주소
+                    let hospitalTell = it.tel_no;         //전화번호
+
+                    var hospital_location = new naver.maps.LatLng(it.lat, it.lot),   //동물병원의 위도경도 입력
+
+                    marker = new naver.maps.Marker({
+                            map: map,
+                            position: hospital_location      //동물병원 마커 설정
+                        });
+
+                    var contentString = [
+                        '<div class="iw_inner">',
+                        '   <h3>'+hospitalName+'</h3>',
+                        '   <p>'+hospitalAddr+'<br />',
+                        '      '+hospitalTell+'<br />',
+                        '   </p>',
+                        '</div>'
+                    ].join('');
+                    
+                    //info 디자인
+                    var infowindow = new naver.maps.InfoWindow({
+                        content: contentString,
+                        maxWidth:440
+                    });
+
+                    naver.maps.Event.addListener(marker, "click", function (e) {
+                        if (infowindow.getMap()) {
+                            infowindow.close();
+                        } else {
+                            infowindow.open(map, marker);
+                        }
+                    });
+
+                    infowindow.open(map, marker);
+
+
+                })
+            },
+            error: (request, status, error) => {
+                console.log(request.error);
+                console.log(request.status);
+                console.log(request.responseText);
+            }
+        })
+    });
+
+    async function getLocation() {
+        let XY = new Object();
+        if (navigator.geolocation) {
+
+            let promise = new Promise((resolve, rejected) => {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    resolve(position);
+                });
+            });
+
+            let position = await promise;
+            XY.lng = position.coords.longitude //경도
+            XY.lat = position.coords.latitude //위도
+        }
+        return XY;
+    }
+</script>
+
+</html>
